@@ -6,7 +6,7 @@ const port = process.env.PORT || 3000
 
 const app = express();
 app.use(cors());
-app.use(express());
+app.use(express.json());
 
 
 
@@ -26,8 +26,30 @@ async function run() {
     try {
         await client.connect();
 
+        const database = client.db('ticket-booking')
+        const userCollection = database.collection('users')
 
-        
+        // User
+        app.post('/users', async (req, res) => {
+            const userInfo = req.body
+            userInfo.role = 'user'
+            userInfo.status = 'active'
+            userInfo.createdAt = new Date()
+            const result = await userCollection.insertOne(userInfo)
+            res.send(result)
+        })
+
+
+        // User role
+        app.get('/users/role/:email', async (req, res) => {
+            const { email } = req.params
+            const query = { email: email }
+            const result = await userCollection.findOne(query)
+            console.log(result);
+            res.send(result)
+        })
+
+
 
 
         await client.db("admin").command({ ping: 1 });
