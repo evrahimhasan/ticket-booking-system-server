@@ -85,15 +85,33 @@ async function run() {
         })
 
 
-        // Get All Tickets
+        // Get All Tickets + Searched Tickets
         app.get('/tickets', async (req, res) => {
             try {
+
+                const { from, to, date } = req.query;
+
+                let query = {};
+
+                if (from) {
+                    query.from = { $regex: from, $options: "i" };
+                }
+
+                if (to) {
+                    query.to = { $regex: to, $options: "i" };
+                }
+
+                if (date) {
+                    query.journeyDate = date;
+                }
+
                 const tickets = await TicketCollection
-                    .find()
+                    .find(query)
                     .sort({ createdAt: -1 })
                     .toArray();
 
                 res.send(tickets);
+
             } catch (error) {
                 res.status(500).send({ message: "Failed to fetch tickets" });
             }
