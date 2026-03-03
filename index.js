@@ -30,7 +30,8 @@ async function run() {
 
         const database = client.db('ticket-booking')
         const userCollection = database.collection('users')
-        const TicketCollection = database.collection(('tickets'))
+        const TicketCollection = database.collection('tickets')
+        const BookingCollection = database.collection("bookings");
 
         // User
         app.post('/users', async (req, res) => {
@@ -198,9 +199,8 @@ async function run() {
 
         // confirm booking
         app.post("/confirm-booking", async (req, res) => {
-            const { ticketId, selectedSeats } = req.body;
+            const { ticketId, selectedSeats, userEmail, totalAmount } = req.body;
 
-            // First check seats still available
             const ticket = await TicketCollection.findOne({ _id: new ObjectId(ticketId) });
 
             const unavailable = ticket.seats.filter(
@@ -217,18 +217,31 @@ async function run() {
             await TicketCollection.updateOne(
                 { _id: new ObjectId(ticketId), "seats.seatNo": { $in: selectedSeats } },
                 {
-                    $set: {
-                        "seats.$[elem].status": "BOOKED"
-                    }
+                    $set: { "seats.$[elem].status": "BOOKED" }
                 },
                 {
-                    arrayFilters: [
-                        { "elem.seatNo": { $in: selectedSeats } }
-                    ]
+                    arrayFilters: [{ "elem.seatNo": { $in: selectedSeats } }]
                 }
             );
 
+            // ✅ Save booking info
+            await BookingCollection.insertOne({
+                ticketId,
+                userEmail,
+                selectedSeats,
+                totalAmount,
+                bookingDate: new Date()
+            });
+
             res.send({ message: "Booking confirmed" });
+        });
+
+
+        // get my tickets
+        app.get("/my-bookings/:email", async (req, res) => {
+            const userEmail = req.params.email;
+            const bookings = await BookingCollection.find({ userEmail }).toArray();
+            res.send(bookings);
         });
 
 
