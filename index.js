@@ -4,6 +4,9 @@ require('dotenv').config()
 
 const port = process.env.PORT || 3000
 
+// stripe 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -174,6 +177,59 @@ async function run() {
             res.send(result)
 
         })
+
+
+
+
+        //payment api
+        app.post("/create-payment-intent", async (req, res) => {
+            const { amount } = req.body;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount * 100,
+                currency: "bdt",
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+
+        // confirm booking
+        app.post("/confirm-booking", async (req, res) => {
+            const { ticketId, selectedSeats } = req.body;
+
+            // First check seats still available
+            const ticket = await TicketCollection.findOne({ _id: new ObjectId(ticketId) });
+
+            const unavailable = ticket.seats.filter(
+                seat =>
+                    selectedSeats.includes(seat.seatNo) &&
+                    seat.status === "BOOKED"
+            );
+
+            if (unavailable.length > 0) {
+                return res.status(400).send({ message: "Seat already booked!" });
+            }
+
+            // Update seats
+            await TicketCollection.updateOne(
+                { _id: new ObjectId(ticketId), "seats.seatNo": { $in: selectedSeats } },
+                {
+                    $set: {
+                        "seats.$[elem].status": "BOOKED"
+                    }
+                },
+                {
+                    arrayFilters: [
+                        { "elem.seatNo": { $in: selectedSeats } }
+                    ]
+                }
+            );
+
+            res.send({ message: "Booking confirmed" });
+        });
 
 
 
