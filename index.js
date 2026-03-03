@@ -9,7 +9,6 @@ app.use(cors());
 app.use(express.json());
 
 
-
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.83ib2ra.mongodb.net/?appName=Cluster0`;
 
@@ -77,10 +76,38 @@ async function run() {
 
 
         // Add Tickets
+        // app.post('/tickets', async (req, res) => {
+        //     const data = req.body
+        //     data.createdAt = new Date()
+        //     const result = await TicketCollection.insertOne(data)
+        //     res.send(result)
+        // })
+
         app.post('/tickets', async (req, res) => {
+
             const data = req.body
+
+            const totalSeats = data.totalSeats || 40
+            const seatsPerRow = 4
+            const rowCount = totalSeats / seatsPerRow
+
+            const rows = Array.from({ length: rowCount }, (_, i) =>
+                String.fromCharCode(65 + i) // A,B,C...
+            )
+
+            const seats = rows.flatMap(row =>
+                Array.from({ length: seatsPerRow }, (_, i) => ({
+                    seatNo: `${row}${i + 1}`,
+                    status: "AVAILABLE"
+                }))
+            )
+
+            data.seats = seats
+            data.seatsLeft = seats.length
             data.createdAt = new Date()
+
             const result = await TicketCollection.insertOne(data)
+
             res.send(result)
         })
 
